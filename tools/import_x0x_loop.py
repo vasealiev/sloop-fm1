@@ -49,6 +49,11 @@ def prepare(source: Path, output: Path, bpm: float):
             f"({actual:.2f}s available, {wanted / RATE:.2f}s required); "
             "provide a full bar or correct --bpm"
         )
+    if (wanted + 1) // 2 > sio.SLOT_MAX_DATA:
+        raise ValueError(
+            f"one bar needs about {(wanted + 1) // 2} B of ADPCM, exceeding "
+            f"the {sio.SLOT_MAX_DATA} B USER-slot data budget; raise BPM or shorten the loop"
+        )
     x = x[:wanted]
     peak = max((abs(v) for v in x), default=0.0)
     if peak < 1e-9:
@@ -72,11 +77,6 @@ def main():
     # The existing slot uploader encodes at 22050 Hz; an IMA slot uses about
     # half a byte per decoded sample, so report the expected data footprint.
     encoded = (n + 1) // 2
-    if encoded > sio.SLOT_MAX_DATA:
-        ap.error(
-            f"one bar is {encoded} B of estimated ADPCM, exceeding the "
-            f"{sio.SLOT_MAX_DATA} B USER-slot data budget; raise BPM or shorten the loop"
-        )
     print(f"Prepared {args.output}: {n} samples, {seconds:.3f}s at {args.bpm:g} BPM")
     print(f"Estimated IMA ADPCM payload: {encoded} B / {sio.SLOT_MAX_DATA} B")
     print(f"Upload with: python tools/fm1_sample_upload.py load 1 X0X {args.output}")
